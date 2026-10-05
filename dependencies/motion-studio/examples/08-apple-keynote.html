@@ -1,0 +1,101 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 08 · KEYNOTE (Apple štýl)  ·  16:9  ·  14 s  ·  72 BPM
+   Princíp: ZDRŽANLIVOSŤ. Jedna myšlienka na záber, dlhé držanie, pohyb len tam, kde niečo znamená.
+   Čierna, biely text, jemné svetlo (bloom), chrómový titulok, prechody cez čiernu. Nič neskáče. */
+const W = 1920, H = 1080, DUR = 14;
+const WHITE = '#F5F5F7', GRAY = '#86868B', DIM = '#6E6E73';
+const F = 'Inter';
+
+// obálka scény: nábeh z čiernej a odchod do čiernej
+const env = (t, dur, i = 0.5, o = 0.4) => Math.min(M.prog(t, 0, i, M.ease.inOut), 1 - M.prog(t, dur - o, o, M.ease.inOut));
+// "Apple" odhalenie: rozmazané → ostré, jemný posun a mierka
+function reveal(g, str, x, y, t, at, o) {
+  const p = M.prog(t, at, o.dur || 1.1, M.ease.out); if (p <= 0) return;
+  g.save(); g.globalAlpha *= p; const b = (1 - p) * 18; if (b > 0.3) g.filter = `blur(${b.toFixed(1)}px)`;
+  g.translate(x, y + (1 - p) * (o.rise ?? 24)); const s = 1 + (1 - p) * 0.04; g.scale(s, s);
+  M.text(g, str, 0, 0, o); g.restore();
+}
+// svetelná guľa / pruh (aditívne vrstvy)
+function bloom(g, x, y, r, t, amt = 1, flat = 0.28) {
+  g.save(); g.globalCompositeOperation = 'lighter'; g.translate(x, y); g.scale(1, flat);
+  const cols = [[255, 122, 61], [255, 79, 163], [90, 169, 255], [255, 214, 140]];
+  cols.forEach((c, i) => { const a = t * 0.5 + i * 1.7, ox = Math.cos(a) * r * 0.35, oy = Math.sin(a * 1.3) * r * 0.25;
+    const gr = g.createRadialGradient(ox, oy, 0, ox, oy, r * (0.9 + 0.1 * Math.sin(t + i)));
+    gr.addColorStop(0, `rgba(${c},${0.55 * amt})`); gr.addColorStop(1, `rgba(${c},0)`);
+    g.fillStyle = gr; g.beginPath(); g.arc(ox, oy, r, 0, M.TAU); g.fill(); });
+  const core = g.createRadialGradient(0, 0, 0, 0, 0, r * 0.45); core.addColorStop(0, `rgba(255,255,255,${0.9 * amt})`); core.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = core; g.beginPath(); g.arc(0, 0, r * 0.45, 0, M.TAU); g.fill(); g.restore();
+}
+// chrómový text s prechádzajúcim odleskom
+function chrome(g, str, x, y, size, sweep) {
+  g.save(); g.font = `800 ${size}px ${F}`; g.letterSpacing = `${-size * 0.045}px`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const w = g.measureText(str).width, gr = g.createLinearGradient(x - w / 2, y - size / 2, x + w / 2, y + size / 2);
+  const p = M.clamp(sweep, 0, 1);
+  gr.addColorStop(0, '#5b5b60'); gr.addColorStop(Math.max(0.01, p - 0.18), '#b8b8bd'); gr.addColorStop(p, '#ffffff');
+  gr.addColorStop(Math.min(0.99, p + 0.18), '#a9a9ae'); gr.addColorStop(1, '#4a4a4f');
+  g.fillStyle = gr; g.fillText(str, x, y);
+  // odraz na "podlahe"
+  g.save(); g.translate(0, y * 2 + size * 0.92); g.scale(1, -1); g.globalAlpha = 0.08; g.fillText(str, x, y); g.restore();
+  const fade = g.createLinearGradient(0, y + size * 0.45, 0, y + size * 1.2); fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,1)');
+  g.fillStyle = fade; g.fillRect(0, y + size * 0.45, W, size); g.restore();
+}
+
+M.film({
+  W, H, DUR, BG: '#000', title: 'keynote',
+  fonts: [`800 100px ${F}`, `600 40px ${F}`, `400 20px ${F}`],
+  images: { site: 'assets/workshop/hero.png' },
+  music: { bpm: 70, style: 'ambient', key: 'C' },
+  cues: [{ t: 0.9, type: 'riser', gain: .25 }, { t: 3.4, type: 'swoosh', gain: .3 }, { t: 6.5, type: 'whoosh', gain: .25 },
+    { t: 9.8, type: 'tick', gain: .4 }, { t: 10.05, type: 'tick', gain: .4 }, { t: 10.3, type: 'tick', gain: .4 }, { t: 12.3, type: 'ding', gain: .5 }],
+  scenes: [
+    /* 1 · svetlo + jedno slovo */
+    { from: 0, to: 3.2, draw(g, t, T, d) { g.globalAlpha = env(t, d, 0.8);
+      bloom(g, W / 2, 640, 420 * M.sp(t - 0.1, 'soft'), T, 0.9);
+      reveal(g, 'Claude.', W / 2, 470, t, 0.7, { font: `700 150px ${F}`, color: WHITE, spacing: -6 });
+      reveal(g, 'Nový živý workshop od vaší značky.', W / 2, 1000, t, 1.9, { font: `400 20px ${F}`, color: DIM, rise: 0, dur: 0.8 }); } },
+
+    /* 2 · chrómový titulok */
+    { from: 3.2, to: 6.2, draw(g, t, T, d) { g.globalAlpha = env(t, d, 0.6);
+      const s = 1.06 - 0.06 * M.prog(t, 0, 3, M.ease.out);
+      g.save(); g.translate(W / 2, H / 2 - 40); g.scale(s, s); g.translate(-W / 2, -(H / 2 - 40));
+      chrome(g, 'naplno.', W / 2, H / 2 - 40, 330, M.prog(t, 0.3, 2.2, M.ease.inOut) * 1.3 - 0.15); g.restore(); } },
+
+    /* 3 · produkt – reálny web na notebooku */
+    { from: 6.2, to: 9.6, draw(g, t, T, d) { g.globalAlpha = env(t, d, 0.6);
+      reveal(g, 'Živý online workshop.', W / 2, 150, t, 0.2, { font: `600 64px ${F}`, color: WHITE, spacing: -2 });
+      reveal(g, 'Dve a pol hodiny. Malá skupina. Celý čas pracuješ ty.', W / 2, 225, t, 0.55, { font: `400 30px ${F}`, color: GRAY });
+      const up = M.sp(t - 0.3, 'soft'), push = 1 + 0.05 * M.prog(t, 0.3, 3, M.ease.out);
+      g.save(); g.translate(W / 2, 660 + (1 - up) * 120); g.scale(push, push); g.globalAlpha *= M.clamp(up * 1.5);
+      bloom(g, 0, 330, 520, T, 0.35, 0.12);
+      const sw = 900, sh = 562;
+      g.fillStyle = '#2b2b2e'; M.rrect(g, -sw / 2 - 18, -sh / 2 - 18, sw + 36, sh + 36, 26); g.fill();
+      g.fillStyle = '#000'; M.rrect(g, -sw / 2 - 12, -sh / 2 - 12, sw + 24, sh + 24, 20); g.fill();
+      M.image(g, IMG.site, -sw / 2, -sh / 2, sw, sh, { r: 6 });
+      // odlesk skla
+      const gl = g.createLinearGradient(-sw / 2, -sh / 2, sw / 2, sh / 2); gl.addColorStop(0, 'rgba(255,255,255,.07)'); gl.addColorStop(0.5, 'rgba(255,255,255,0)');
+      g.fillStyle = gl; g.fillRect(-sw / 2, -sh / 2, sw, sh);
+      const base = g.createLinearGradient(0, sh / 2 + 18, 0, sh / 2 + 44); base.addColorStop(0, '#c9c9ce'); base.addColorStop(1, '#6d6d72');
+      g.fillStyle = base; g.beginPath(); g.moveTo(-sw / 2 - 90, sh / 2 + 18); g.lineTo(sw / 2 + 90, sh / 2 + 18); g.lineTo(sw / 2 + 60, sh / 2 + 42); g.lineTo(-sw / 2 - 60, sh / 2 + 42); g.closePath(); g.fill();
+      g.fillStyle = '#8e8e93'; M.rrect(g, -80, sh / 2 + 18, 160, 8, 4); g.fill();
+      g.restore(); } },
+
+    /* 4 · tri fakty */
+    { from: 9.6, to: 12, draw(g, t, T, d) { g.globalAlpha = env(t, d, 0.4);
+      const cols = [['Dátum', '5. 11.'], ['Začiatok', '19:00'], ['Cena', 'od 39 €']];
+      cols.forEach(([l, v], i) => { const x = W / 2 + (i - 1) * 560, at = 0.2 + i * 0.25;
+        reveal(g, l, x, 430, t, at, { font: `500 30px ${F}`, color: GRAY, dur: 0.9 });
+        reveal(g, v, x, 540, t, at + 0.08, { font: `700 120px ${F}`, color: WHITE, spacing: -4, dur: 0.9 }); });
+      reveal(g, 'Online. V slovenčine. Záznam dostaneš po workshope.', W / 2, 720, t, 1.1, { font: `400 28px ${F}`, color: GRAY }); } },
+
+    /* 5 · lockup */
+    { from: 12, to: 14, draw(g, t, T, d) { g.globalAlpha = Math.min(1, M.prog(t, 0, 0.5, M.ease.inOut));
+      bloom(g, W / 2, 470, 150 * M.sp(t - 0.1, 'soft'), T, 1, 1);
+      reveal(g, 'Ukázkový event', W / 2, 650, t, 0.3, { font: `700 104px ${F}`, color: WHITE, spacing: -4 });
+      reveal(g, 'example.com/workshop', W / 2, 745, t, 0.7, { font: `500 36px ${F}`, color: '#F7A24A' });
+      reveal(g, 'Predaj je otvorený. Počet miest je obmedzený.', W / 2, 1010, t, 1.0, { font: `400 20px ${F}`, color: DIM, rise: 0 }); } },
+  ],
+});
+</script>

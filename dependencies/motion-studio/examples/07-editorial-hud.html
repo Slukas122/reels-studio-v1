@@ -1,0 +1,175 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 07 · EDITORIAL HUD (módny lookbook)  ·  16:9  ·  12 s  ·  100 BPM
+   Podklad: reálna fotka alebo video (tu assets/portrait/demo.jpg) + halftone raster + grade.
+   Navrch: hľadáčik s trackingom tváre, pravítko, počítadlo "LOOK", split-flap tabuľa, karta ako štítok na oblečení, timecode.
+   Pozn.: rohové popisky a rámiky sú tu ZÁMERNÝ dizajnový jazyk (každý nesie informáciu, mono font, presné zarovnanie). */
+const W = 1920, H = 1080, DUR = 12, FPS = 30;
+const HUD = '#EDEDE6', ACC = '#F26B3A', CARD = '#F1EFEA', INK = '#161616', DARK = '#0F1110';
+const MONO = 'JetBrains Mono', DISP = 'Anton';
+const B = M.beats(100);
+
+// Fotka 1280×1280 – tvár (x 430–880, y 300–850), oči (x 470–860, y 390–490)
+const LOOKS = [
+  { from: 0,    to: 4.2,  cam: [640, 600], zoom: 1.5, drift: [-18, -10], box: [430, 290, 880, 860], card: 'R',
+    flap: ['05', 'VIDEÍ', 'TÝŽDENNE'], label: 'TITLE CARD', title: 'VAŠE ZNAČKA', tag: 'FW26', code: 'DEMO-00 / 05',
+    rows: [['MODEL', 'JMÉNO TVŮRCE'], ['FORMÁT', 'AI · FINANCIE'], ['FREKVENCIA', '5× TÝŽDENNE'], ['JAZYK', 'SK / CZ'], ['MADE IN', 'VAŠE MĚSTO']] },
+  { from: 4.2,  to: 7.8,  cam: [560, 470], zoom: 2.9, drift: [14, 4], box: [455, 370, 870, 505], card: 'L',
+    flap: ['35', 'TISÍC', 'ODBERATEĽOV'], label: 'SPEC', title: 'YOUTUBE', tag: 'LIVE', code: 'DEMO-01 / 35',
+    rows: [['ODBERATELIA', '35 000'], ['TOP VIDEO', 'ÚVOD DO CLAUDE'], ['VIDENIA', '~90 000'], ['FOKUS', 'CLAUDE · AGENTI'], ['STATUS', 'ON AIR']] },
+  { from: 7.8,  to: 12,   cam: [780, 600], zoom: 2.0, drift: [-30, 0], box: [430, 290, 880, 860], card: 'R',
+    flap: ['05', 'NOVEMBRA', 'WORKSHOP'], label: 'WORKSHOP', title: 'UKÁZKOVÝ EVENT', tag: 'NEW', code: 'DEMO-02 / 11',
+    rows: [['DÁTUM', '05. 11. 2026'], ['ČAS', '19:00 – 21:30'], ['FORMÁT', 'ONLINE · LIVE'], ['CENA', 'OD 39 €'], ['MIESTA', 'OBMEDZENÉ']] },
+];
+const lookAt = T => LOOKS.findIndex(l => T >= l.from && T < l.to);
+
+// ---------- halftone raster (predkreslený vzor = deterministická cache) ----------
+let dotPat = null;
+function halftone(g, a = 0.55, cell = 7) {
+  if (!dotPat) { const c = document.createElement('canvas'); c.width = c.height = cell; const p = c.getContext('2d');
+    p.fillStyle = '#fff'; p.fillRect(0, 0, cell, cell); p.fillStyle = '#000'; p.beginPath(); p.arc(cell / 2, cell / 2, cell * 0.3, 0, M.TAU); p.fill();
+    dotPat = g.createPattern(c, 'repeat'); }
+  g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = a; g.fillStyle = dotPat; g.fillRect(0, 0, W, H); g.restore();
+}
+// kamera: bod fotky → obrazovka
+function camOf(L, lt) { const z = L.zoom * (1 + 0.025 * lt), cx = L.cam[0] + L.drift[0] * lt / 3, cy = L.cam[1] + L.drift[1] * lt / 3;
+  return { z, cx, cy, S: (x, y) => [(x - cx) * z + W / 2, (y - cy) * z + H / 2] }; }
+
+// ---------- split-flap tabuľa ----------
+const CHARS = 'ABCDEFGHIJKLMNOPRSTUVZÁČĎÉÍĽŇÓÔŠŤÚÝŽ0123456789';
+function flapRow(g, x, y, txt, prev, tSince, o) {
+  const cw = o.w, ch = o.h;
+  for (let i = 0; i < Math.max(txt.length, prev.length); i++) {
+    const target = txt[i] || ' ', old = prev[i] || ' ';
+    const st = tSince - i * 0.035, dur = 0.32;
+    let c = target, flip = 1;
+    if (st < 0) c = old; else if (st < dur) { const k = Math.floor(st / 0.045); c = CHARS[Math.floor(M.hash(k * 31 + i, 7) * CHARS.length)]; flip = Math.abs(Math.cos((st / 0.045) * Math.PI)); }
+    const px = x + i * (cw + 3);
+    g.fillStyle = o.bg; M.rrect(g, px, y, cw, ch, 3); g.fill();
+    g.save(); g.translate(px + cw / 2, y + ch / 2); g.scale(1, Math.max(0.15, flip));
+    M.text(g, c === ' ' ? '' : c, 0, 2, { font: `${o.weight || 600} ${o.size}px "${MONO}"`, color: o.color }); g.restore();
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(px, y + ch / 2 - 1, cw, 2); // stredová škára
+  }
+}
+
+// ---------- štítok (care label) ----------
+function careLabel(g, L, lt, x, y) {
+  const w = 480, h = 424;
+  g.save(); g.translate(x, y);
+  g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 30; g.shadowOffsetY = 12;
+  g.fillStyle = CARD; g.fillRect(0, 0, w, h); g.shadowColor = 'transparent';
+  g.fillStyle = ACC; g.fillRect(0, 0, 7, h);
+  g.strokeStyle = M.alpha(INK, .35); g.setLineDash([5, 5]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(24, 16); g.lineTo(w - 24, 16); g.stroke(); g.setLineDash([]);
+  const idx = LOOKS.indexOf(L);
+  M.text(g, `LOOK ${String(idx).padStart(2, '0')} / 03 · ${L.label}`, 26, 50, { font: `500 19px "${MONO}"`, color: INK, align: 'left', spacing: 2 });
+  g.fillStyle = ACC; g.fillRect(w - 88, 34, 64, 32); M.text(g, L.tag, w - 56, 51, { font: `600 18px "${MONO}"`, color: CARD, spacing: 1 });
+  // titulok sa "napíše"
+  const tn = Math.floor(M.clamp((lt - 0.25) / 0.35) * L.title.length);
+  M.text(g, L.title.slice(0, tn), 24, 104, { font: `58px ${DISP}`, color: INK, align: 'left', spacing: 0 });
+  g.fillStyle = INK; g.fillRect(24, 142, (w - 48) * M.prog(lt, 0.3, 0.4, M.ease.out), 2);
+  L.rows.forEach(([k, v], i) => { const at = 0.55 + i * 0.12, p = M.clamp((lt - at) / 0.25);
+    if (p <= 0) return; const yy = 176 + i * 36;
+    M.text(g, k.slice(0, Math.ceil(p * k.length)), 24, yy, { font: `400 21px "${MONO}"`, color: M.alpha(INK, .8), align: 'left', spacing: 1 });
+    M.text(g, v.slice(0, Math.ceil(p * v.length)), w - 24, yy, { font: `400 21px "${MONO}"`, color: INK, align: 'right', spacing: 1 }); });
+  const lp = M.prog(lt, 1.2, 0.3);
+  g.globalAlpha = lp; g.fillStyle = INK; g.fillRect(24, 352 - 16, w - 48, 2);
+  // symboly prania
+  g.strokeStyle = INK; g.lineWidth = 2; const sy = 378;
+  g.beginPath(); g.moveTo(26, sy - 14); g.lineTo(30, sy + 12); g.lineTo(56, sy + 12); g.lineTo(60, sy - 14); g.stroke();
+  M.text(g, '30', 43, sy + 3, { font: `500 11px "${MONO}"`, color: INK });
+  g.beginPath(); g.moveTo(88, sy - 14); g.lineTo(104, sy + 12); g.lineTo(72, sy + 12); g.closePath(); g.stroke();
+  g.strokeRect(118, sy - 12, 24, 24); g.beginPath(); g.moveTo(118, sy - 12); g.lineTo(142, sy + 12); g.moveTo(142, sy - 12); g.lineTo(118, sy + 12); g.stroke();
+  g.beginPath(); g.arc(168, sy, 12, 0, M.TAU); g.stroke();
+  g.strokeRect(192, sy - 12, 24, 24); g.beginPath(); g.arc(204, sy, 8, 0, M.TAU); g.stroke();
+  // čiarový kód zo seedu textu
+  let bx = w - 190; const seed = L.code.length * 97 + idx * 13;
+  for (let i = 0; i < 46; i++) { const bw = 1 + Math.floor(M.hash(i, seed) * 3.2); if (M.hash(i, seed + 1) > .35) { g.fillStyle = INK; g.fillRect(bx, sy - 18, bw, 30); } bx += bw + 1; }
+  M.text(g, L.code, w - 190, sy + 30, { font: `400 16px "${MONO}"`, color: INK, align: 'left', spacing: 1 });
+  g.globalAlpha = 1; g.restore();
+}
+
+M.film({
+  W, H, DUR, FPS, BG: DARK, title: 'editorial-hud',
+  fonts: [`60px ${DISP}`, `500 20px "${MONO}"`, `600 40px "${MONO}"`],
+  images: { photo: 'assets/portrait/demo.jpg' },
+  music: { bpm: 100, style: 'pulse', key: 'E' },
+  cues: [
+    { t: 0, type: 'thump' }, { t: 4.2, type: 'impact' }, { t: 7.8, type: 'impact' }, { t: 10.6, type: 'riser' },
+    ...LOOKS.flatMap(L => [{ t: L.from + 0.15, type: 'swoosh', gain: .6 },
+      ...Array.from({ length: 10 }, (_, i) => ({ t: L.from + 0.35 + i * 0.045, type: 'tick', gain: .5 })),
+      ...Array.from({ length: 5 }, (_, i) => ({ t: L.from + 0.55 + i * 0.12, type: 'type', gain: .5 })),
+      { t: L.from + 1.25, type: 'blip', gain: .6 }]),
+  ],
+  scenes: [{ from: 0, to: DUR, draw(g, T) {
+    const li = Math.max(0, lookAt(T)), L = LOOKS[li], lt = T - L.from, C = camOf(L, lt);
+    // --- podklad: fotka s gradom, rack focus pri strihu ---
+    // grade sa aplikuje RAZ do cache (filter na veľkom obrázku v každom frame je pomalý)
+    if (!window.__graded) { const c = document.createElement('canvas'); c.width = IMG.photo.width; c.height = IMG.photo.height; const p = c.getContext('2d');
+      p.filter = 'saturate(0.8) contrast(1.12) sepia(0.2) brightness(1.03)'; p.drawImage(IMG.photo, 0, 0); window.__graded = c; }
+    const img = window.__graded, [x0, y0] = C.S(0, 0);
+    g.save(); const blur = Math.max(0, 10 * (1 - M.prog(lt, 0, 0.35, M.ease.out)));
+    if (blur > 0.3) g.filter = `blur(${blur.toFixed(1)}px)`;
+    g.drawImage(img, x0, y0, img.width * C.z, img.height * C.z); g.restore();
+    g.save(); g.globalCompositeOperation = 'screen'; g.fillStyle = 'rgba(28,34,32,.35)'; g.fillRect(0, 0, W, H); g.restore(); // zdvihnuté čierne
+    halftone(g, 0.5);
+    M.vignette(g, W, H, 0.5);
+    // krátky záblesk pri strihu
+    if (li > 0 && lt < 0.08) { g.fillStyle = `rgba(255,255,255,${0.35 * (1 - lt / 0.08)})`; g.fillRect(0, 0, W, H); }
+
+    // --- hľadáčik okolo tváre (pružinou sa presunie na nový cieľ) ---
+    const boxes = LOOKS.map(l => { const c = camOf(l, T - l.from); const [a, b] = c.S(l.box[0], l.box[1]), [c2, d] = c.S(l.box[2], l.box[3]); return [a, b, c2, d]; });
+    const keys = LOOKS.map((l, i) => [l.from, boxes[i]]);
+    // pozícia: aktuálny cieľ + pružinový dobeh z predchádzajúceho
+    const prevBox = li > 0 ? (() => { const l = LOOKS[li - 1], c = camOf(l, L.from - l.from); const [a, b] = c.S(l.box[0], l.box[1]), [c2, d] = c.S(l.box[2], l.box[3]); return [a, b, c2, d]; })() : boxes[li];
+    const s = M.sp(lt - 0.05, 'snappy'), bb = boxes[li].map((v, k) => M.lerp(prevBox[k], v, s));
+    const [bx0, by0, bx1, by1] = [Math.max(40, bb[0]), Math.max(20, bb[1]), Math.min(W - 40, bb[2]), Math.min(H - 20, bb[3])];
+    const arm = 150;
+    g.strokeStyle = M.alpha(HUD, .85); g.lineWidth = 2;
+    [[bx0, by0, 1, 1], [bx1, by0, -1, 1], [bx0, by1, 1, -1], [bx1, by1, -1, -1]].forEach(([x, y, dx, dy]) => {
+      g.beginPath(); g.moveTo(x + dx * arm, y); g.lineTo(x, y); g.lineTo(x, y + dy * arm); g.stroke(); });
+    g.fillStyle = HUD; g.fillRect(bx0 + 4, by0 + 6, 250, 30);
+    M.text(g, `MODEL 01 · LOOK ${String(li).padStart(2, '0')}`, bx0 + 16, by0 + 22, { font: `500 17px "${MONO}"`, color: INK, align: 'left', spacing: 1.5 });
+    const score = (0.95 + 0.04 * M.hash(Math.floor(T * 6), 3)).toFixed(2);
+    M.text(g, score, bx1 - 10, by0 + 22, { font: `500 18px "${MONO}"`, color: HUD, align: 'right' });
+
+    // --- pravítko vľavo ---
+    for (let i = 0; i < 36; i++) { const y = 230 + i * 23.3, major = i % 4 === 0;
+      g.fillStyle = M.alpha(HUD, major ? .7 : .4); g.fillRect(30, y, major ? 24 : 12, 1.5);
+      if (major) M.text(g, String(i / 4).padStart(3, '0'), 62, y, { font: `400 14px "${MONO}"`, color: M.alpha(HUD, .6), align: 'left' }); }
+    const my = 230 + ((T / DUR) * 35) * 23.3; g.fillStyle = ACC; g.fillRect(26, my - 1, 30, 3);
+    g.strokeStyle = M.alpha(HUD, .6); g.lineWidth = 1.5; g.beginPath(); g.moveTo(22, 22); g.lineTo(46, 22); g.moveTo(34, 10); g.lineTo(34, 34); g.stroke();
+
+    // --- horné popisky ---
+    M.text(g, `LOOK ${String(li).padStart(2, '0')} / 03`, 110, 58, { font: `500 21px "${MONO}"`, color: HUD, align: 'left', spacing: 3 });
+    M.text(g, 'VAŠE ZNAČKA · FW26', W - 70, 58, { font: `400 17px "${MONO}"`, color: M.alpha(HUD, .35), align: 'right', spacing: 3 });
+    g.fillStyle = M.alpha(HUD, .25); for (let x = W - 520; x < W - 70; x += 6) g.fillRect(x, 104, 3, 1.5);
+
+    // --- split-flap ---
+    const pf = li > 0 ? LOOKS[li - 1].flap : ['  ', '', ''];
+    const fx = W - 520, fy = 128, big = { w: 44, h: 70, size: 48, bg: '#141414', color: ACC, weight: 700 }, sm = { w: 22, h: 30, size: 20, bg: '#141414', color: HUD };
+    flapRow(g, fx, fy, L.flap[0], pf[0], lt - 0.3, big);
+    flapRow(g, fx + 108, fy + 2, L.flap[1], pf[1], lt - 0.4, sm);
+    flapRow(g, fx + 108, fy + 38, L.flap[2], pf[2], lt - 0.5, sm);
+
+    // --- štítok (vpravo / vľavo podľa looku), prílet pružinou ---
+    const inP = M.sp(lt - 0.15, 'base'), side = L.card === 'R';
+    const cx = side ? W - 540 + (1 - inP) * 620 : 120 - (1 - inP) * 700, cy = 300;
+    careLabel(g, L, lt, cx, cy);
+
+    // --- záver: CTA pás cez spodok ---
+    const endP = M.sp(T - 10.4, 'base');
+    if (endP > 0.001) { g.fillStyle = CARD; g.fillRect(0, H - 150 * endP, W, 150);
+      g.save(); M.clipRect(g, 0, H - 150 * endP, W, 150);
+      M.text(g, 'EXAMPLE.COM/WORKSHOP', 110, H - 75 * endP + (1 - endP) * 40, { font: `76px ${DISP}`, color: INK, align: 'left' });
+      M.text(g, 'UKÁZKOVÝ EVENT · 05. 11. · 19:00', W - 110, H - 75 * endP, { font: `500 26px "${MONO}"`, color: ACC, align: 'right', spacing: 2 });
+      g.restore(); }
+
+    // --- timecode ---
+    const f = Math.floor(T * FPS), tc = `00:00:${String(Math.floor(T)).padStart(2, '0')}:${String(f % FPS).padStart(2, '0')}`;
+    M.text(g, tc, W - 70, H - 26 - 150 * Math.max(0, endP), { font: `500 17px "${MONO}"`, color: HUD, align: 'right', spacing: 2 });
+    M.grain(g, W, H, T, 0.06);
+  }}],
+});
+</script>

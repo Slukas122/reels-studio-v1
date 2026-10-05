@@ -1,0 +1,142 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 04 · PRÍBEHOVÝ EXPLAINER  ·  9:16  ·  18 s  ·  96 BPM
+   "História Bitcoinu za 18 sekúnd" – kapitoly nesie rok v hornom čipe, každé 3 s nový vizuálny payoff.
+   Fakty: whitepaper 31. 10. 2008 · pizza 22. 5. 2010 (10 000 BTC) · $1k 2013 · $20k 2017 · $69k 2021 · $100k 12/2024 · halvingy 2012/16/20/24 · max 21 mil. */
+const W = 1080, H = 1920, DUR = 18;
+const NAVY = '#0F1428', CREAM = '#F3EADB', ACC = '#F7931A', MUTED = '#8B93AE';
+const SERIF = 'Instrument Serif', SANS = 'Inter';
+const CH = [ // kapitoly: [od, rok]
+  [0, '2008'], [2.6, '2008'], [5.6, '2010'], [8.6, '2010–24'], [12.2, '4 roky'], [15.2, 'dnes']];
+
+M.film({
+  W, H, DUR, BG: NAVY, title: 'pribehovy-explainer',
+  fonts: [`italic 100px "${SERIF}"`, `100px "${SERIF}"`, `600 40px ${SANS}`, `800 100px ${SANS}`, `500 40px "JetBrains Mono"`],
+  music: { bpm: 96, style: 'cinematic', key: 'D' },
+  cues: [
+    ...[...'31. októbra 2008'].map((_, i) => ({ t: 0.2 + i * 0.045, type: 'type', gain: .5 })),
+    { t: 1.35, type: 'thump' }, { t: 2.6, type: 'paper' }, { t: 3.9, type: 'swoosh' }, { t: 4.3, type: 'thump', gain: .6 },
+    { t: 5.6, type: 'whoosh' }, { t: 6.0, type: 'pop' }, { t: 6.2, type: 'pop' }, { t: 7.3, type: 'ding' },
+    { t: 8.6, type: 'whoosh' }, { t: 9.4, type: 'tick' }, { t: 10.0, type: 'tick' }, { t: 10.6, type: 'tick' }, { t: 11.2, type: 'impact' },
+    { t: 12.2, type: 'swoosh' }, { t: 12.6, type: 'thump', gain: .6 }, { t: 13.1, type: 'thump', gain: .5 }, { t: 13.6, type: 'thump', gain: .4 }, { t: 14.1, type: 'thump', gain: .3 },
+    { t: 15.2, type: 'riser' }, { t: 16.4, type: 'impact' },
+  ],
+  scenes: [
+    /* 1 · HOOK */
+    { from: 0, to: 2.6, draw(g, t) {
+      const s = '31. októbra 2008', n = Math.floor(M.clamp((t - 0.2) / 0.72) * s.length);
+      M.text(g, s.slice(0, n) + (t < 1.3 && Math.floor(t * 4) % 2 ? '▍' : ''), W / 2, 700, { font: `500 58px "JetBrains Mono"`, color: ACC });
+      const a = M.sp(t - 1.3, 'heavy'), b = M.sp(t - 1.7, 'heavy');
+      g.save(); M.clipRect(g, 0, 780, W, 170);
+      M.text(g, 'niekto poslal e-mail,', W / 2, 870 + (1 - a) * 170, { font: `italic 104px "${SERIF}"`, color: CREAM }); g.restore();
+      g.save(); M.clipRect(g, 0, 950, W, 190);
+      M.text(g, 'ktorý zmenil peniaze.', W / 2, 1050 + (1 - b) * 190, { font: `104px "${SERIF}"`, color: CREAM }); g.restore();
+    }},
+
+    /* 2 · WHITEPAPER – papier priletí, autor je začiernený */
+    { from: 2.6, to: 5.6, draw(g, t) {
+      const p = M.sp(t, 'heavy'), push = M.sp(t - 2.5, 'snappy');
+      g.save(); g.translate(W / 2, 1060 + (1 - p) * 1100); g.rotate((1 - p) * -0.3 - 0.03); g.scale(1 + push * 0.08, 1 + push * 0.08);
+      g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 60; g.shadowOffsetY = 30; g.fillStyle = CREAM; g.fillRect(-380, -500, 760, 1000); g.shadowColor = 'transparent';
+      M.text(g, 'Bitcoin: A Peer-to-Peer', 0, -380, { font: `52px "${SERIF}"`, color: NAVY });
+      M.text(g, 'Electronic Cash System', 0, -320, { font: `52px "${SERIF}"`, color: NAVY });
+      M.text(g, 'Satoshi Nakamoto', 0, -240, { font: `italic 40px "${SERIF}"`, color: NAVY });
+      // cenzúrny pruh cez autora
+      const bar = M.prog(t, 1.25, 0.35, M.ease.expoOut);
+      g.fillStyle = NAVY; g.fillRect(-160, -268, 320 * bar, 56);
+      // riadky textu sa "napíšu"
+      for (let i = 0; i < 16; i++) { const lw = (i % 5 === 4 ? 360 : 600) * M.prog(t, 0.5 + i * 0.05, 0.3);
+        g.fillStyle = M.alpha(NAVY, .22); g.fillRect(-300, -150 + i * 38, lw, 12); }
+      g.restore();
+      const q = M.sp(t - 1.4, 'playful');
+      g.save(); g.translate(W / 2 + 250, 480); g.rotate(0.08); g.scale(q, q);
+      g.fillStyle = ACC; M.rrect(g, -200, -60, 400, 120, 60); g.fill();
+      M.text(g, 'Kto to je?', 0, 4, { font: `700 54px ${SANS}`, color: NAVY }); g.restore();
+    }},
+
+    /* 3 · PIZZA – 10 000 BTC za dve pizze */
+    { from: 5.6, to: 8.6, draw(g, t) {
+      const n = Math.round(10000 * M.prog(t, 0.2, 0.9, M.ease.expoOut));
+      M.text(g, n.toLocaleString('sk-SK') + ' BTC', W / 2, 560, { font: `800 150px ${SANS}`, color: ACC, spacing: -6 });
+      M.text(g, '=', W / 2, 720, { font: `100px "${SERIF}"`, color: CREAM, alpha: M.prog(t, 0.6, 0.2) });
+      [-1, 1].forEach((side, k) => {
+        const s = M.sp(t - 0.4 - k * 0.2, 'playful'), cx = W / 2 + side * 220, cy = 1030;
+        g.save(); g.translate(cx, cy); g.scale(s, s); g.rotate((t - 0.4) * 0.3 * side);
+        g.fillStyle = '#E9B44C'; g.beginPath(); g.arc(0, 0, 190, 0, M.TAU); g.fill();
+        g.fillStyle = '#D9482B'; g.beginPath(); g.arc(0, 0, 160, 0, M.TAU); g.fill();
+        g.fillStyle = '#F6E3B4'; const r = M.rng(5 + k);
+        for (let i = 0; i < 9; i++) { g.beginPath(); g.arc((r() - .5) * 220, (r() - .5) * 220, 18 + r() * 12, 0, M.TAU); g.fill(); }
+        g.strokeStyle = M.alpha(NAVY, .35); g.lineWidth = 5;
+        for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(i * Math.PI / 4) * 190, Math.sin(i * Math.PI / 4) * 190); g.moveTo(0, 0); g.lineTo(-Math.cos(i * Math.PI / 4) * 190, -Math.sin(i * Math.PI / 4) * 190); g.stroke(); }
+        g.restore();
+      });
+      const l = M.sp(t - 1.7, 'heavy');
+      g.save(); M.clipRect(g, 0, 1260, W, 300);
+      M.text(g, 'Prvý známy nákup za bitcoin.', W / 2, 1330 + (1 - l) * 300, { font: `italic 72px "${SERIF}"`, color: CREAM });
+      M.text(g, '22. mája 2010, Florida', W / 2, 1430 + (1 - l) * 300, { font: `500 40px "JetBrains Mono"`, color: MUTED });
+      g.restore();
+    }},
+
+    /* 4 · CENA – graf sa kreslí, míľniky vyskočia */
+    { from: 8.6, to: 12.2, draw(g, t) {
+      const x0 = 110, x1 = 970, y0 = 1400, y1 = 520;
+      const yr = y => M.lerp(x0, x1, (y - 2010) / 15);
+      const lv = v => M.lerp(y0, y1, Math.log10(v / 0.05) / Math.log10(120000 / 0.05)); // log mierka
+      const pts = [[2010.4, .08], [2011.4, 20], [2011.9, 3], [2013.9, 1000], [2015, 200], [2017.95, 19000], [2018.9, 3500], [2021.3, 60000], [2021.85, 69000], [2022.9, 16000], [2024.2, 71000], [2024.93, 100000]];
+      g.strokeStyle = M.alpha(CREAM, .12); g.lineWidth = 2;
+      [1, 100, 10000].forEach(v => { g.beginPath(); g.moveTo(x0, lv(v)); g.lineTo(x1, lv(v)); g.stroke();
+        M.text(g, '$' + v.toLocaleString('en-US'), x0, lv(v) - 22, { font: `500 28px "JetBrains Mono"`, color: MUTED, align: 'left' }); });
+      [2010, 2015, 2020, 2025].forEach(y => M.text(g, String(y), yr(y), y0 + 50, { font: `500 30px "JetBrains Mono"`, color: MUTED, alpha: M.prog(t, 0.1, 0.3) }));
+      const p = M.prog(t, 0.2, 2.6, M.ease.inOut), m = p * (pts.length - 1);
+      g.strokeStyle = ACC; g.lineWidth = 9; g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath();
+      for (let i = 0; i <= m; i++) g.lineTo(yr(pts[i][0]), lv(pts[i][1]));
+      const fi = Math.floor(m), fr = m - fi; if (fi < pts.length - 1) g.lineTo(M.lerp(yr(pts[fi][0]), yr(pts[fi + 1][0]), fr), M.lerp(lv(pts[fi][1]), lv(pts[fi + 1][1]), fr));
+      g.stroke();
+      const ms = [[3, '$1 000', 2013], [5, '$20 000', 2017], [8, '$69 000', 2021], [11, '$100 000', 2024]];
+      ms.forEach(([i, label], k) => { const at = 0.2 + 2.6 * (i / (pts.length - 1)), s = M.sp(t - at, 'playful');
+        if (s <= 0) return; const px = yr(pts[i][0]), py = lv(pts[i][1]);
+        g.fillStyle = CREAM; g.beginPath(); g.arc(px, py, 14 * s, 0, M.TAU); g.fill();
+        g.save(); g.translate(px + [0, -40, -150, -110][k], py + [-80, -80, -90, 80][k]); g.scale(s, s);
+        g.fillStyle = CREAM; M.rrect(g, -120, -38, 240, 76, 38); g.fill();
+        M.text(g, label, 0, 2, { font: `700 38px ${SANS}`, color: NAVY }); g.restore(); });
+      M.text(g, 'Cena 1 BTC (log. mierka)', W / 2, 1560, { font: `italic 56px "${SERIF}"`, color: CREAM, alpha: M.prog(t, 0.4, 0.4) });
+    }},
+
+    /* 5 · HALVING – odmena za blok sa každé ~4 roky polovičí */
+    { from: 12.2, to: 15.2, draw(g, t) {
+      M.text(g, 'Odmena za blok', W / 2, 520, { font: `italic 84px "${SERIF}"`, color: CREAM, alpha: M.prog(t, 0, 0.3) });
+      M.text(g, 'sa každé 4 roky zníži na polovicu', W / 2, 610, { font: `500 38px ${SANS}`, color: MUTED, alpha: M.prog(t, 0.15, 0.3) });
+      const rows = [['2009', 50], ['2012', 25], ['2016', 12.5], ['2020', 6.25], ['2024', 3.125]];
+      rows.forEach(([y, v], i) => { const s = M.sp(t - 0.3 - i * 0.5, 'heavy'), yy = 760 + i * 150, w = 520 * v / 50;
+        M.text(g, y, 150, yy, { font: `500 38px "JetBrains Mono"`, color: MUTED, align: 'left', alpha: M.clamp(s * 3) });
+        if (s > 0.02) { g.fillStyle = i === rows.length - 1 ? ACC : CREAM; M.rrect(g, 290, yy - 45, Math.max(8, w * s), 90, 14); g.fill(); }
+        M.text(g, String(v).replace('.', ',') + ' BTC', 290 + Math.max(w * s, 8) + 24, yy, { font: `700 44px ${SANS}`, color: i === rows.length - 1 ? ACC : CREAM, align: 'left', alpha: M.clamp((s - .5) * 3) }); });
+    }},
+
+    /* 6 · ZÁVER – 21 miliónov */
+    { from: 15.2, to: 18, draw(g, t) {
+      const v = Math.round(21000000 * M.prog(t, 0.1, 1.1, M.ease.expoOut));
+      const s = 1 + 0.06 * (1 - M.sp(t - 1.2, 'playful'));
+      g.save(); g.translate(W / 2, 860); g.scale(s, s);
+      M.text(g, v.toLocaleString('sk-SK'), 0, 0, { font: `800 150px ${SANS}`, color: ACC, spacing: -5 }); g.restore();
+      M.text(g, 'bitcoinov. Nikdy nebude viac.', W / 2, 1010, { font: `italic 72px "${SERIF}"`, color: CREAM, alpha: M.prog(t, 1.2, 0.4) });
+      const o = M.prog(t, 1.9, 0.5);
+      M.text(g, 'example.com', W / 2, 1500, { font: `600 44px ${SANS}`, color: MUTED, spacing: 3, alpha: o });
+    }},
+  ],
+  after(g, T) {
+    // rokový čip hore – mení sa medzi kapitolami (preslide čísla)
+    let i = 0; for (let k = 0; k < CH.length; k++) if (T >= CH[k][0]) i = k;
+    const lt = T - CH[i][0], p = M.sp(lt, 'snappy'), prev = CH[Math.max(0, i - 1)][1];
+    const show = M.prog(T, 0.1, 0.3);
+    g.globalAlpha = show; g.fillStyle = M.alpha(CREAM, .1); M.rrect(g, W / 2 - 150, 170, 300, 90, 45); g.fill();
+    g.save(); M.clipRect(g, W / 2 - 150, 170, 300, 90);
+    if (prev !== CH[i][1]) M.text(g, prev, W / 2, 215 - p * 90, { font: `600 46px "JetBrains Mono"`, color: CREAM });
+    M.text(g, CH[i][1], W / 2, 215 + (prev !== CH[i][1] ? (1 - p) * 90 : 0), { font: `600 46px "JetBrains Mono"`, color: CREAM });
+    g.restore(); g.globalAlpha = 1;
+    M.grain(g, W, H, T, 0.04);
+  },
+});
+</script>

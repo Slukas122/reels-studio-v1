@@ -1,0 +1,137 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 01 · KINETICKÝ SHOWREEL  ·  9:16  ·  12 s  ·  120 BPM (beat = 0,5 s, takt = 2 s) */
+const W = 1080, H = 1920, DUR = 12;
+const INK = '#0E0E0C', PAPER = '#F2EFE6', ACC = '#FF4D1F';
+const { b } = M.beats(120);
+const DISPLAY = 'Anton', UI = 'Space Grotesk', SERIF = 'Instrument Serif';
+
+M.film({
+  W, H, DUR, BG: INK, title: 'kineticky-showreel',
+  fonts: [`300px ${DISPLAY}`, `700 90px "${UI}"`, `italic 100px "${SERIF}"`, `700 100px "JetBrains Mono"`],
+  music: { bpm: 120, style: 'pulse', key: 'A' },
+  cues: [
+    { t: b(0), type: 'thump' }, { t: b(1), type: 'thump' }, { t: b(2), type: 'thump' }, { t: b(3), type: 'impact' },
+    { t: b(4), type: 'whoosh' }, { t: b(4.5), type: 'tick' }, { t: b(5), type: 'tick' }, { t: b(7.2), type: 'swoosh' },
+    ...Array.from({ length: 12 }, (_, i) => ({ t: 4.05 + i * 0.06, type: 'pop', gain: .35 })),
+    { t: 5.0, type: 'click' }, { t: 5.55, type: 'riser' }, { t: 6.0, type: 'impact' },
+    ...Array.from({ length: 12 }, (_, i) => ({ t: 6.1 + i * 0.1, type: 'tick', gain: .8 })),
+    { t: 7.55, type: 'whoosh' }, { t: 8.3, type: 'pop' }, { t: 8.8, type: 'pen' },
+    { t: 9.75, type: 'swoosh' }, { t: 10.1, type: 'thump' }, { t: 10.5, type: 'pop' }, { t: 11.0, type: 'ding' },
+  ],
+  scenes: [
+    /* 1 · HOOK: štyri slová na štyri beaty, pozadie preblikne na každom */
+    { from: 0, to: 2, draw(g, t) {
+      const words = [['TOTO'], ['CELÉ'], ['JE'], ['LEN', 'KÓD.']];
+      const bgs = [INK, PAPER, INK, ACC], fgs = [PAPER, INK, PAPER, INK];
+      const i = Math.min(3, Math.floor(t / 0.5)), lt = t - i * 0.5;
+      g.fillStyle = bgs[i]; g.fillRect(0, 0, W, H);
+      const s = 1.35 - 0.35 * M.sp(lt, 'snappy');
+      g.translate(W / 2, H / 2); g.scale(s, s); g.rotate((i % 2 ? 1 : -1) * 0.04 * (1 - M.sp(lt, 'base')));
+      const lines = words[i], size = lines.length > 1 ? 330 : 400;
+      lines.forEach((w, k) => M.text(g, w, 0, (k - (lines.length - 1) / 2) * size * 0.95, { font: `${size}px ${DISPLAY}`, color: fgs[i] }));
+    }},
+
+    /* 2 · MASK REVEAL: tri riadky vyjdú zo škár, posunú sa, odídu hore */
+    { from: 2, to: 4, draw(g, t) {
+      const rows = [['POHYB', 'fill', PAPER], ['RYTMUS', 'stroke', PAPER], ['ŠTÝL', 'fill', ACC]];
+      const lh = 300, y0 = H / 2 - lh;
+      rows.forEach(([w, mode, col], k) => {
+        const y = y0 + k * lh, inP = M.sp(t - k * 0.12, 'heavy'), outP = M.sp(t - 1.62 - k * 0.05, 'snappy');
+        const dx = M.track(t, [[0, 0], [0.8, k === 1 ? -170 : 120], [1.2, 0]], 'base');
+        g.save(); M.clipRect(g, 0, y - lh / 2 - 10, W, lh + 10);
+        g.translate(W / 2 + dx, y + 25 + (1 - inP) * lh - outP * lh);
+        g.font = `250px ${DISPLAY}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        if (mode === 'stroke') { g.lineWidth = 5; g.strokeStyle = col; g.strokeText(w, 0, 10); }
+        else { g.fillStyle = col; g.fillText(w, 0, 10); }
+        g.restore();
+      });
+      // akcentová lišta, ktorá pretne obraz
+      const bp = M.prog(t, 1.25, 0.5, M.ease.expoInOut);
+      g.fillStyle = ACC; g.fillRect(-W + bp * 2 * W, y0 + lh * 1.5 + 30, W, 16);
+    }},
+
+    /* 3 · MRIEŽKA: štvorce naskočia po diagonále, zmenia sa na kruhy, kamera vletí do akcentovej dlaždice */
+    { from: 4, to: 6, draw(g, t) {
+      g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
+      const C = 5, R = 9, cell = 190, gx = (W - C * cell) / 2 + cell / 2, gy = (H - R * cell) / 2 + cell / 2;
+      const AC = [2, 4]; // akcentová bunka (stĺpec, riadok)
+      const zoom = 1 + Math.pow(M.prog(t, 1.45, 0.55, M.ease.in), 1) * 14;
+      const ax = gx + AC[0] * cell, ay = gy + AC[1] * cell;
+      g.translate(ax, ay); g.scale(zoom, zoom); g.translate(-ax, -ay);
+      for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+        const d = (c + r) * 0.045, s = M.sp(t - d, 'playful');
+        const morph = M.sp(t - 1.0 - d * 0.5, 'base');
+        const isA = c === AC[0] && r === AC[1];
+        const sz = 150 * s * (isA ? 1 : 1 - 0.25 * morph);
+        g.save(); g.translate(gx + c * cell, gy + r * cell); g.rotate(morph * Math.PI / 4 * (isA ? 0 : 1));
+        g.fillStyle = isA ? ACC : INK;
+        M.rrect(g, -sz / 2, -sz / 2, sz, sz, isA ? 18 * s : sz / 2 * morph); g.fill(); g.restore();
+      }
+    }},
+
+    /* 4 · POČÍTADLO: valčekové číslice 00 → 60 */
+    { from: 6, to: 8, draw(g, t) {
+      g.fillStyle = ACC; g.fillRect(0, 0, W, H);
+      const v = 60 * M.prog(t, 0.05, 1.25, M.ease.expoOut);
+      const outS = 1 - M.sp(t - 1.5, 'snappy');
+      g.translate(W / 2, H / 2 - 60); g.scale(1, Math.max(0.001, outS));
+      const digits = [Math.floor(v / 10), v % 10]; const dw = 270, size = 440;
+      g.font = `800 ${size}px "JetBrains Mono"`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK;
+      digits.forEach((d, k) => {
+        const x = (k - 0.5) * dw;
+        g.save(); M.clipRect(g, x - dw / 2, -size * 0.40, dw, size * 0.80);
+        const base = Math.floor(d), f = d - base; // plynulý valček
+        for (let j = -1; j <= 1; j++) g.fillText(String((base + j + 10) % 10), x, (j - f) * size * 1.1 + 20);
+        g.restore();
+      });
+      M.text(g, 'SNÍMKOV ZA SEKUNDU', 0, 360, { font: `700 64px "${UI}"`, color: INK, spacing: 6, alpha: M.prog(t, 0.6, 0.3) });
+    }},
+
+    /* 5 · MARQUEE + KARTA */
+    { from: 8, to: 10, draw(g, t) {
+      g.fillStyle = INK; g.fillRect(0, 0, W, H);
+      g.save(); g.translate(W / 2, H / 2); g.rotate(-0.14);
+      const exit = M.prog(t, 1.65, 0.35, M.ease.in);
+      for (let r = -6; r <= 6; r++) {
+        const dir = r % 2 ? 1 : -1, y = r * 210, x = dir * (t * 260) + (r * 137) % 400;
+        g.font = `200px ${DISPLAY}`; g.textBaseline = 'middle'; g.textAlign = 'left';
+        const word = 'MOTION · ', ww = g.measureText(word).width;
+        for (let k = -4; k < 5; k++) {
+          const px = ((x % ww) + k * ww) - W;
+          if (r % 2) { g.lineWidth = 3; g.strokeStyle = M.alpha(PAPER, 0.35); g.strokeText(word, px, y); }
+          else { g.fillStyle = M.alpha(PAPER, 0.12); g.fillText(word, px, y); }
+        }
+      }
+      g.restore();
+      // karta
+      const cs = M.sp(t - 0.3, 'playful') * (1 - exit);
+      g.save(); g.translate(W / 2, H / 2); g.scale(cs, cs); g.rotate(0.05 * (1 - M.sp(t - 0.3, 'base')));
+      g.fillStyle = PAPER; M.rrect(g, -440, -230, 880, 460, 36); g.fill();
+      M.text(g, 'bez After Effects.', 0, -20, { font: `italic 120px "${SERIF}"`, color: INK });
+      const u = M.prog(t, 0.8, 0.6, M.ease.inOut);
+      g.strokeStyle = ACC; g.lineWidth = 12; g.lineCap = 'round'; g.beginPath();
+      for (let i = 0; i <= 40 * u; i++) { const x = -330 + i * 16.5; g.lineTo(x, 80 + Math.sin(i * 0.5) * 8); } g.stroke();
+      g.restore();
+    }},
+
+    /* 6 · LOGO LOCKUP */
+    { from: 10, to: 12, draw(g, t) {
+      g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
+      const a = M.sp(t - 0.05, 'heavy'), bb = M.sp(t - 0.4, 'heavy');
+      g.save(); M.clipRect(g, 0, H / 2 - 260, W, 200);
+      M.text(g, 'motion', W / 2, H / 2 - 160 + (1 - a) * 200, { font: `700 190px "${UI}"`, color: INK, spacing: -6 });
+      g.restore();
+      g.save(); M.clipRect(g, 0, H / 2 - 60, W, 220);
+      M.text(g, 'studio', W / 2, H / 2 + 40 - (1 - bb) * 220, { font: `italic 220px "${SERIF}"`, color: ACC });
+      g.restore();
+      const d = M.sp(t - 0.5, 'playful');
+      g.fillStyle = ACC; g.beginPath(); g.arc(W / 2 + 330, H / 2 - 190, 26 * d, 0, M.TAU); g.fill();
+      M.text(g, 'example.com', W / 2, H / 2 + 330, { font: `500 52px "${UI}"`, color: INK, spacing: 4, alpha: M.prog(t, 1.0, 0.4) });
+    }},
+  ],
+  after(g, T) { M.grain(g, W, H, T, 0.05); },
+});
+</script>

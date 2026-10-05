@@ -1,0 +1,138 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 02 · LAUNCH REEL PRODUKTU  ·  9:16  ·  15 s  ·  120 BPM
+   Produkt: example.com/skilly – obrázky sú DEMO plochy; pred produkciou ich nahraďte vlastnými screenshotmi. */
+const W = 1080, H = 1920, DUR = 15;
+const BG = '#0A0C10', CARD = '#141821', TXT = '#F3F1EC', MUTED = '#8C93A3', ACC = '#FF6B35';
+const F = 'Space Grotesk';
+
+M.film({
+  W, H, DUR, BG, title: 'launch-reel',
+  fonts: [`700 100px "${F}"`, `500 40px "${F}"`, `800 100px Inter`],
+  images: { hero: 'assets/hero.png', c1: 'assets/card1.png', c2: 'assets/card2.png', c5: 'assets/card5.png', form: 'assets/form.png' },
+  music: { bpm: 120, style: 'pulse', key: 'D' },
+  cues: [
+    { t: 0.0, type: 'thump' }, { t: 0.5, type: 'thump' }, { t: 1.0, type: 'impact' }, { t: 1.55, type: 'swoosh' },
+    { t: 2.5, type: 'whoosh' }, { t: 2.75, type: 'pop', gain: .5 }, { t: 2.9, type: 'pop', gain: .5 }, { t: 3.05, type: 'pop', gain: .5 },
+    { t: 5.0, type: 'whoosh' }, { t: 5.95, type: 'click' }, { t: 6.8, type: 'whoosh' }, { t: 7.75, type: 'click' },
+    { t: 8.6, type: 'whoosh' }, { t: 9.55, type: 'click' }, { t: 10.5, type: 'impact' },
+    { t: 11.5, type: 'ding' }, { t: 12.5, type: 'whoosh' },
+    ...[...'tvoj@mail.sk'].map((_, i) => ({ t: 13.0 + i * 0.05, type: 'type', gain: .6 })),
+    { t: 13.9, type: 'click' }, { t: 14.1, type: 'ding' },
+  ],
+  scenes: [
+    /* 1 · HOOK – problém piatimi slovami, "polovičnú" sa rozpolí */
+    { from: 0, to: 2.5, draw(g, t) {
+      const l1 = M.sp(t, 'snappy'), l2 = M.sp(t - 0.5, 'snappy');
+      const out = 1 - M.prog(t, 1.9, 0.3, M.ease.in);
+      M.text(g, 'Claude ti robí', W / 2, 760 - (1 - l1) * 80, { font: `700 118px "${F}"`, color: TXT, alpha: M.clamp(t * 6) * out, spacing: -3 });
+      // "polovičnú" – po 1.0 s sa rozdelí na hornú a dolnú polovicu
+      const split = M.sp(t - 1.0, 'snappy') * 34, fade = 1 - M.prog(t, 1.9, 0.3, M.ease.in);
+      const y = 920, sz = 190;
+      g.globalAlpha = M.clamp((t - 0.5) * 6) * fade;
+      for (const half of [0, 1]) {
+        g.save(); g.translate((half ? 1 : -1) * split * 1.6, (half ? 1 : -1) * split * 0.5);
+        M.clipRect(g, 0, half ? y + 12 : y - sz, W, sz);
+        const s = 1.3 - 0.3 * l2; g.translate(W / 2, y); g.scale(s, s);
+        M.text(g, 'polovičnú', 0, 0, { font: `700 ${sz}px "${F}"`, color: ACC, spacing: -6 }); g.restore();
+      }
+      M.text(g, 'robotu?', W / 2, 1090, { font: `700 118px "${F}"`, color: TXT, alpha: M.clamp((t - 1.0) * 6) * fade, spacing: -3 });
+      g.globalAlpha = 1;
+    }},
+
+    /* 2 · PRODUKT – telefón vyjde zdola, screenshot sa poskladá z pásov */
+    { from: 2.5, to: 5, draw(g, t) {
+      const up = M.sp(t, 'heavy'), push = M.sp(t - 1.6, 'base');
+      const pw = 700, ph = 1384, s = 1 + push * 0.55;
+      g.translate(W / 2, H / 2 + (1 - up) * 1300 + push * 330); g.scale(s, s);
+      g.fillStyle = '#1D212B'; M.rrect(g, -pw / 2 - 18, -ph / 2 - 18, pw + 36, ph + 36, 90); g.fill();
+      g.fillStyle = '#000'; M.rrect(g, -pw / 2, -ph / 2, pw, ph, 74); g.fill();
+      g.save(); M.rrect(g, -pw / 2, -ph / 2, pw, ph, 74); g.clip();
+      const img = IMG.hero, strips = 5, sh = img.height / strips, dh = ph / strips;
+      for (let i = 0; i < strips; i++) {
+        const p = M.sp(t - 0.15 - i * 0.08, 'snappy'), dir = i % 2 ? 1 : -1;
+        g.globalAlpha = M.clamp(p * 3);
+        g.drawImage(img, 0, i * sh, img.width, sh, -pw / 2 + dir * (1 - p) * pw, -ph / 2 + i * dh, pw, dh + 1);
+      }
+      g.restore(); g.globalAlpha = 1;
+      g.fillStyle = '#000'; M.rrect(g, -90, -ph / 2 + 18, 180, 44, 22); g.fill(); // dynamic island
+    }},
+
+    /* 3 · TRI SKILLY – reálne karty prilietajú ako balíček, kurzor klikne na "funguje hneď" */
+    { from: 5, to: 10.5, draw(g, t) {
+      const cards = [['c1', '01'], ['c2', '02'], ['c5', '05']], per = 1.8;
+      const cw = 960, chFor = img => img.height * cw / img.width;
+      const idx = Math.min(2, Math.floor(t / per));
+      // veľké číslo v pozadí
+      const lt = t - idx * per, np = M.sp(lt, 'heavy');
+      g.save(); M.clipRect(g, 0, 200, W, 520);
+      M.text(g, cards[idx][1], W / 2, 470 + (1 - np) * 520, { font: `800 520px Inter`, color: M.alpha(ACC, 0.9), spacing: -30 });
+      g.restore();
+      M.text(g, 'SKILL', W / 2, 190, { font: `500 44px "${F}"`, color: MUTED, spacing: 14, alpha: M.clamp(t * 4) });
+      for (let k = 0; k <= idx; k++) {
+        const img = IMG[cards[k][0]], ch = chFor(img), kt = t - k * per;
+        const inP = M.sp(kt, 'base'), depth = idx - k, back = M.sp(t - (k + 1) * per, 'base') * (depth > 0 ? 1 : 0);
+        const deep = depth > 1 ? 1 : 0;
+        g.save();
+        g.translate(W / 2 + (1 - inP) * 1100 * (k % 2 ? -1 : 1), 1260 - back * 150 - deep * 60);
+        g.rotate((1 - inP) * 0.25 * (k % 2 ? -1 : 1) + (depth ? (k % 2 ? -0.03 : 0.03) : 0));
+        const s = 1 - back * 0.1 - deep * 0.05; g.scale(s, s);
+        g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 60; g.shadowOffsetY = 30;
+        g.fillStyle = CARD; M.rrect(g, -cw / 2, -ch / 2, cw, ch, 32); g.fill(); g.shadowColor = 'transparent';
+        M.image(g, img, -cw / 2, -ch / 2, cw, ch, { r: 32 });
+        if (depth) { g.fillStyle = `rgba(10,12,16,${0.55 * back})`; M.rrect(g, -cw / 2, -ch / 2, cw, ch, 32); g.fill(); }
+        // pulz na odznaku "funguje hneď" (pozícia v screenshote ~ x 20–105, y 80–105 z 390 px)
+        const pulse = M.window(kt, 0.95, 1.5, 0.05, 0.4);
+        if (!depth && pulse > 0) { const bx = -cw / 2 + cw * 66 / 390, by = -ch / 2 + ch * 120 / (img.height / 2);
+          g.strokeStyle = M.alpha('#39D98A', pulse); g.lineWidth = 5; M.rrect(g, bx - 128 - 20 * (1 - pulse), by - 44 - 10 * (1 - pulse), 256 + 40 * (1 - pulse), 88 + 20 * (1 - pulse), 44); g.stroke(); }
+        g.restore();
+      }
+      // kurzor: priletí k odznaku, klikne
+      const kt = t - idx * per;
+      const img = IMG[cards[idx][0]], ch = chFor(img);
+      const tx = W / 2 - cw / 2 + cw * 66 / 390, ty = 1260 - ch / 2 + ch * 120 / (img.height / 2);
+      const cx = M.track(kt, [[0, W + 100], [0.35, tx + 40]], 'base'), cy = M.track(kt, [[0, H + 100], [0.35, ty + 10]], 'base');
+      const press = M.window(kt, 0.9, 1.05, 0.04, 0.08);
+      M.cursor(g, cx, cy, { scale: 2.2, press, ring: kt > 0.95 && kt < 1.4 ? M.prog(kt, 0.95, 0.45) : 0 });
+    }},
+
+    /* 4 · JEDNO ČÍSLO – 5 skillov, 0 € */
+    { from: 10.5, to: 12.5, draw(g, t) {
+      g.fillStyle = ACC; g.fillRect(0, 0, W, H * M.sp(t, 'snappy'));
+      const a = M.sp(t - 0.1, 'heavy'), b2 = M.sp(t - 0.9, 'playful');
+      g.save(); g.translate(W / 2, 800); g.scale(a, a);
+      M.text(g, '5 skillov', 0, 0, { font: `700 190px "${F}"`, color: BG, spacing: -8 }); g.restore();
+      g.save(); g.translate(W / 2, 1050); g.scale(b2, b2); g.rotate(-0.06);
+      g.fillStyle = BG; M.rrect(g, -250, -110, 500, 220, 110); g.fill();
+      M.text(g, '0 €', 0, 8, { font: `800 170px Inter`, color: TXT, spacing: -6 }); g.restore();
+      M.text(g, 'po slovensky · aj po česky', W / 2, 1280, { font: `500 52px "${F}"`, color: BG, alpha: M.prog(t, 1.2, 0.3) });
+    }},
+
+    /* 5 · CTA – reálny formulár, kurzor napíše mail a klikne */
+    { from: 12.5, to: 15, draw(g, t) {
+      const img = IMG.form, fw = 960, fh = img.height * fw / img.width, k = fw / img.width;
+      const inP = M.sp(t, 'base');
+      const fx = (W - fw) / 2, fy = 380 + (1 - inP) * 900;
+      const press = M.window(t, 1.38, 1.55, 0.04, 0.1);
+      g.save(); g.translate(W / 2, fy + fh / 2); g.fillStyle = CARD;
+      g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 80; M.rrect(g, -fw / 2, -fh / 2, fw, fh, 36); g.fill(); g.restore();
+      M.image(g, img, fx, fy, fw, fh, { r: 36 });
+      // napísaný e-mail cez placeholder v inpute (input ~ y 270–395 v screenshote)
+      const typed = 'tvoj@mail.sk'.slice(0, Math.floor(M.clamp((t - 0.5) / 0.6) * 12));
+      if (t > 0.45) { g.fillStyle = '#10131A'; g.fillRect(fx + 60 * k, fy + 300 * k, 560 * k, 66 * k);
+        M.text(g, typed + (Math.floor(t * 3) % 2 ? '|' : ''), fx + 66 * k, fy + 333 * k, { font: `500 ${30 * k}px Inter`, color: TXT, align: 'left' }); }
+      // stlačenie tlačidla
+      const bx = fx + 390 * k, by = fy + 624 * k;
+      if (press > 0) { g.fillStyle = `rgba(0,0,0,${0.25 * press})`; M.rrect(g, fx + 42 * k, fy + 572 * k, 696 * k, 104 * k, 16 * k); g.fill(); }
+      const cx = M.track(t, [[0, W + 80], [0.2, fx + 520 * k], [1.0, bx + 60]], 'base'), cy = M.track(t, [[0, H], [0.2, fy + 350 * k], [1.0, by + 10]], 'base');
+      M.cursor(g, cx, cy, { scale: 2.2, press, ring: t > 1.4 && t < 1.9 ? M.prog(t, 1.4, 0.5) : 0 });
+      // lockup
+      const l = M.sp(t - 1.6, 'heavy');
+      M.text(g, 'example.com/skilly', W / 2, 1520 + (1 - l) * 60, { font: `700 84px "${F}"`, color: TXT, alpha: M.clamp((t - 1.6) * 4), spacing: -2 });
+      M.text(g, 'odkaz v popise ↓', W / 2, 1620, { font: `500 46px "${F}"`, color: ACC, alpha: M.clamp((t - 1.9) * 4) });
+    }},
+  ],
+});
+</script>

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "source": "source.mp4",
+  "format": {"width": 1080, "height": 1920, "fps": 30},
+  "segments": [
+    {
+      "id": "opening",
+      "sourceStartMs": 0,
+      "sourceEndMs": 5000,
+      "rate": 1,
+      "focusX": 50,
+      "focusY": 45,
+      "scale": 1
+    }
+  ],
+  "hook": null,
+  "cta": null,
+  "effects": [],
+  "broll": [],
+  "sfx": [],
+  "music": null,
+  "captions": {
+    "enabled": true,
+    "maxWordsPerPage": 4,
+    "position": "lower",
+    "highlightWords": [],
+    "fontSize": 66,
+    "speakerColors": {}
+  },
+  "brand": {
+    "fontFamily": "Inter, Arial, sans-serif",
+    "textColor": "#FFFFFF",
+    "accentColor": "#FFE07A",
+    "backgroundColor": "#0B0B0D",
+    "captionBoxColor": "transparent",
+    "logo": null,
+    "fontFile": null
+  }
+}

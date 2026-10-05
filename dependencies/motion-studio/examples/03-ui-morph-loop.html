@@ -1,0 +1,119 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 03 · UI MORPH LOOP  ·  1:1  ·  8 s  ·  120 BPM  ·  bezšvový loop (posledný frame = prvý)
+   Jeden kontajner sa NIKDY nestrihne – mení veľkosť, radius a farbu zo stavu do stavu. Kurzor spúšťa každú zmenu. */
+const W = 1080, H = 1080, DUR = 8;
+const CANVAS = '#ECE8E1', INK = '#15171C', WHITE = '#FFFFFF', ACC = '#2F54EB', OK = '#1FA971', MUTED = '#8A8F9C';
+const F = 'Inter';
+const STEP = 1.0; // nový stav každé 2 beaty
+
+// stavy: [šírka, výška, radius, farba]
+const S = [
+  [220, 220, 110, INK],    // 0 logo
+  [540, 150, 75, ACC],     // 1 tlačidlo
+  [660, 130, 26, WHITE],   // 2 e-mail pole
+  [190, 190, 95, INK],     // 3 loader
+  [240, 240, 120, OK],    // 4 úspech
+  [700, 470, 40, WHITE],   // 5 dashboard karta
+  [780, 520, 40, WHITE],   // 6 graf
+  [760, 400, 32, INK],     // 7 ⌘K paleta
+];
+const BACK = 7.55; // návrat do loga – musí sa usadiť pred t = 8, aby bol loop bez švu
+const keysOf = j => S.map((s, i) => [i * STEP, s[j]]).concat([[BACK, S[0][j]]]);
+const KW = keysOf(0), KH = keysOf(1), KR = keysOf(2);
+const CUR = [[540, 900], [640, 620], [760, 600], [560, 590], [620, 640], [800, 700], [860, 740], [700, 690]];
+const CK = CUR.map((p, i) => [Math.max(0, i * STEP - 0.45), p]); CK.push([BACK - 0.45, CUR[0]]);
+const CLICKS = [...S.map((_, i) => i * STEP - 0.03).slice(1), BACK - 0.03];
+
+const KC = S.map((s, i) => [i * STEP, M.hex(s[3])]).concat([[BACK, M.hex(S[0][3])]]);
+const colorAt = t => 'rgb(' + M.loopTrackN(t, KC, DUR, 'snappy').map(Math.round).join(',') + ')';
+// alfa obsahu stavu i: nábeh po začatí morphu, odchod pred ďalším
+const vis = (t, i) => M.window(t, i * STEP + 0.12, i === 7 ? BACK - 0.05 : (i + 1) * STEP - 0.06, 0.14, 0.08);
+
+M.film({
+  W, H, DUR, BG: CANVAS, title: 'ui-morph-loop', FPS: 30,
+  fonts: [`600 60px ${F}`, `500 40px "JetBrains Mono"`, `italic 100px "Instrument Serif"`],
+  music: { bpm: 120, style: 'piano', key: 'F' },
+  cues: [
+    ...[1,2,3,4,5,6,7].map(i => ({ t: i - 0.03, type: 'click' })), { t: 7.52, type: 'click' }, { t: 7.56, type: 'pop', gain: .35 },
+    ...[1,2,3,4,5,6,7].map(i => ({ t: i + 0.02, type: 'pop', gain: .35 })),
+    ...[...'demo@example.com'].map((_, i) => ({ t: 2.15 + i * 0.035, type: 'type', gain: .45 })),
+    { t: 4.05, type: 'ding' }, { t: 5.2, type: 'tick' }, { t: 5.35, type: 'tick' }, { t: 5.5, type: 'tick' },
+    { t: 6.1, type: 'swoosh', gain: .5 }, { t: 7.15, type: 'blip' }, { t: 7.3, type: 'blip' },
+  ],
+  scenes: [{ from: 0, to: DUR, draw(g, T) {
+    const t = T % DUR;
+    const w = M.loopTrack(t, KW, DUR, 'base'), h = M.loopTrack(t, KH, DUR, 'base'), r = M.loopTrack(t, KR, DUR, 'snappy');
+    const x = W / 2 - w / 2, y = H / 2 - h / 2;
+    // tieň + kontajner
+    g.save(); g.shadowColor = 'rgba(20,20,30,.18)'; g.shadowBlur = 50; g.shadowOffsetY = 24;
+    g.fillStyle = colorAt(t); M.rrect(g, x, y, w, h, r); g.fill(); g.restore();
+    g.save(); M.rrect(g, x, y, w, h, r); g.clip(); g.translate(W / 2, H / 2);
+
+    // 0 · logo
+    let a = t < 1 ? M.clamp((STEP - 0.06 - t) / 0.08) : M.clamp((t - BACK - 0.08) / 0.14);
+    if (a > 0) M.text(g, 'ai', 0, -12, { font: `italic 150px "Instrument Serif"`, color: WHITE, alpha: a });
+
+    // 1 · tlačidlo
+    a = vis(t, 1); if (a > 0) M.text(g, 'Stiahnuť skilly →', 0, (1 - a) * 14, { font: `600 52px ${F}`, color: WHITE, alpha: a });
+
+    // 2 · e-mail
+    a = vis(t, 2); if (a > 0) {
+      const s = 'demo@example.com', n = Math.floor(M.clamp((t - 2.15) / 0.66) * s.length);
+      M.text(g, s.slice(0, n) + (Math.floor(t * 4) % 2 ? '|' : ''), -290, 2, { font: `500 42px ${F}`, color: INK, align: 'left', alpha: a });
+      g.globalAlpha = a; g.strokeStyle = ACC; g.lineWidth = 4; M.rrect(g, -w / 2 + 2, -h / 2 + 2, w - 4, h - 4, 24); g.stroke(); g.globalAlpha = 1;
+    }
+    // 3 · loader
+    a = vis(t, 3); if (a > 0) { const rot = (t - 3) * 9;
+      g.globalAlpha = a; g.strokeStyle = M.alpha(WHITE, .2); g.lineWidth = 9; g.beginPath(); g.arc(0, 0, 50, 0, M.TAU); g.stroke();
+      g.strokeStyle = WHITE; g.lineCap = 'round'; g.beginPath(); g.arc(0, 0, 50, rot, rot + 1.8 + Math.sin((t - 3) * 6) * .6); g.stroke(); g.globalAlpha = 1; }
+    // 4 · úspech – fajka sa nakreslí
+    a = vis(t, 4); if (a > 0) { const p = M.prog(t, 4.08, 0.3, M.ease.out);
+      g.globalAlpha = a; g.strokeStyle = WHITE; g.lineWidth = 14; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.beginPath(); const pts = [[-46, 3], [-13, 36], [52, -34]];
+      g.moveTo(...pts[0]); if (p < .4) g.lineTo(M.lerp(pts[0][0], pts[1][0], p / .4), M.lerp(pts[0][1], pts[1][1], p / .4));
+      else { g.lineTo(...pts[1]); g.lineTo(M.lerp(pts[1][0], pts[2][0], (p - .4) / .6), M.lerp(pts[1][1], pts[2][1], (p - .4) / .6)); }
+      g.stroke(); g.globalAlpha = 1; }
+    // 5 · dashboard – číslo vyrastie, stĺpce naskočia
+    a = vis(t, 5); if (a > 0) { g.globalAlpha = a;
+      M.text(g, 'Odberatelia newslettera', -290, -170, { font: `500 30px ${F}`, color: MUTED, align: 'left' });
+      const v = Math.round(12480 * M.prog(t, 5.1, 0.7, M.ease.expoOut));
+      M.text(g, v.toLocaleString('sk-SK'), -290, -100, { font: `700 88px ${F}`, color: INK, align: 'left', spacing: -3 });
+      M.text(g, '+18 %', 290, -100, { font: `600 34px ${F}`, color: OK, align: 'right' });
+      for (let i = 0; i < 10; i++) { const bh = (40 + 150 * M.hash(i, 3) + i * 9) * M.sp(t - 5.15 - i * 0.04, 'playful');
+        g.fillStyle = i === 9 ? ACC : '#E4E6EC'; M.rrect(g, -290 + i * 60, 190 - bh, 42, bh, 8); g.fill(); }
+      g.globalAlpha = 1; }
+    // 6 · graf – čiara sa nakreslí + tooltip
+    a = vis(t, 6); if (a > 0) { g.globalAlpha = a;
+      M.text(g, 'Rast za 30 dní', -330, -200, { font: `500 30px ${F}`, color: MUTED, align: 'left' });
+      const p = M.prog(t, 6.1, 0.6, M.ease.inOut), N = 30, pts = [];
+      for (let i = 0; i < N; i++) pts.push([-330 + i * 660 / (N - 1), 160 - i * 9 - 40 * M.noise(i * .35, 4) - 20 * Math.sin(i * .5)]);
+      g.strokeStyle = '#E4E6EC'; g.lineWidth = 2; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(-330, 160 - k * 100); g.lineTo(330, 160 - k * 100); g.stroke(); }
+      g.strokeStyle = ACC; g.lineWidth = 7; g.lineJoin = 'round'; g.beginPath();
+      const m = p * (N - 1); for (let i = 0; i <= m; i++) g.lineTo(...pts[i]);
+      const fi = Math.floor(m), fr = m - fi; if (fi < N - 1) g.lineTo(M.lerp(pts[fi][0], pts[fi + 1][0], fr), M.lerp(pts[fi][1], pts[fi + 1][1], fr)); g.stroke();
+      const tp = M.sp(t - 6.65, 'playful'); if (tp > 0) { const [px, py] = pts[N - 1];
+        g.fillStyle = ACC; g.beginPath(); g.arc(px, py, 12 * tp, 0, M.TAU); g.fill();
+        g.save(); g.translate(px - 60, py - 70); g.scale(tp, tp); g.fillStyle = INK; M.rrect(g, -80, -34, 160, 68, 16); g.fill();
+        M.text(g, '12 480', 0, 2, { font: `600 32px ${F}`, color: WHITE }); g.restore(); }
+      g.globalAlpha = 1; }
+    // 7 · ⌘K paleta
+    a = vis(t, 7); if (a > 0) { g.globalAlpha = a;
+      M.text(g, '⌘K   Hľadať skill…', -330, -130, { font: `500 36px ${F}`, color: M.alpha(WHITE, .55), align: 'left' });
+      g.fillStyle = M.alpha(WHITE, .08); g.fillRect(-380, -80, 760, 2);
+      const rows = ['Slovenčina bez AI omáčok', 'Vygriluj mi nápad', 'Rešerš bez halucinácií'];
+      const sel = M.track(t, [[7, 0], [7.15, 1], [7.3, 2]], 'snappy');
+      g.fillStyle = M.alpha(ACC, .9); M.rrect(g, -350, -30 + sel * 90 - 36, 700, 72, 14); g.fill();
+      rows.forEach((s, i) => M.text(g, s, -320, -30 + i * 90, { font: `500 36px ${F}`, color: WHITE, align: 'left' }));
+      g.globalAlpha = 1; }
+    g.restore();
+
+    // kurzor
+    const [cx, cy] = M.loopTrackN(t, CK, DUR, 'base');
+    let press = 0; for (const c of CLICKS) press = Math.max(press, M.window(t, c - 0.02, c + 0.16, 0.03, 0.12));
+    M.cursor(g, cx, cy, { scale: 1.9, press, stroke: INK });
+  }}],
+});
+</script>

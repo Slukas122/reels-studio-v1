@@ -1,0 +1,5 @@
+node_modules
+.cache
+outputs/*.mp4
+outputs/qa-frames
+analysis/frames

@@ -1,0 +1,110 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 05 · DÁTA A GRAFY  ·  16:9  ·  12 s  ·  110 BPM
+   Čísla sú UKÁŽKOVÉ (fiktívne portfólio) – pri reálnom videu vlož vlastné dáta do DATA a uveď zdroj. */
+const W = 1920, H = 1080, DUR = 12;
+const BG = '#F5F4EF', INK = '#111318', G1 = '#6B7080', G2 = '#C9CBD2', G3 = '#E6E6E1', ACC = '#0FA968';
+const F = 'Inter', MONO = 'JetBrains Mono';
+const DATA = {
+  kpi: 127,
+  bars: [['Akcie USA', 92], ['Bitcoin', 310], ['Zlato', 48], ['Dlhopisy', 11], ['Hotovosť', 6]],
+  alloc: [['Akcie', 60], ['Bitcoin', 20], ['Zlato', 10], ['Hotovosť', 10]],
+  a: [100, 104, 101, 110, 118, 115, 124, 133, 129, 141, 150, 158, 152, 166, 175, 181, 178, 192, 204, 211, 227],
+  b: [100, 101, 103, 104, 106, 107, 108, 110, 111, 113, 114, 116, 117, 118, 120, 121, 123, 124, 126, 127, 129],
+};
+const fmt = (v, d = 0) => v.toLocaleString('sk-SK', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+M.film({
+  W, H, DUR, BG, title: 'data-grafy',
+  fonts: [`800 100px ${F}`, `500 40px ${F}`, `500 40px "${MONO}"`],
+  music: { bpm: 110, style: 'minimal', key: 'E' },
+  cues: [
+    { t: 0.05, type: 'thump' }, ...Array.from({ length: 10 }, (_, i) => ({ t: 0.1 + i * 0.1, type: 'tick', gain: .6 })), { t: 1.3, type: 'ding' },
+    { t: 2.5, type: 'whoosh' }, ...[0, 1, 2, 3, 4].map(i => ({ t: 2.7 + i * 0.12, type: 'pop', gain: .5 })), { t: 4.2, type: 'swoosh' },
+    { t: 5.5, type: 'whoosh' }, ...[0, 1, 2, 3].map(i => ({ t: 5.7 + i * 0.18, type: 'click' })),
+    { t: 8.5, type: 'whoosh' }, { t: 9.9, type: 'blip' }, { t: 10.4, type: 'blip' }, { t: 11.0, type: 'impact' },
+  ],
+  scenes: [
+    /* 1 · KPI + sparkline */
+    { from: 0, to: 2.5, draw(g, t) {
+      const v = DATA.kpi * M.prog(t, 0.05, 1.2, M.ease.expoOut);
+      M.text(g, 'VÝNOS PORTFÓLIA ZA 5 ROKOV', 200, 300, { font: `600 34px ${F}`, color: G1, align: 'left', spacing: 4, alpha: M.prog(t, 0, .3) });
+      M.text(g, '+' + fmt(Math.round(v)) + ' %', 190, 470, { font: `800 260px ${F}`, color: INK, align: 'left', spacing: -12 });
+      const p = M.prog(t, 0.3, 1.2, M.ease.inOut), N = DATA.a.length;
+      g.strokeStyle = ACC; g.lineWidth = 8; g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath();
+      const X = i => 200 + i * 1520 / (N - 1), Y = v => 960 - (v - 100) * 2.8;
+      for (let i = 0; i <= p * (N - 1); i++) g.lineTo(X(i), Y(DATA.a[i])); g.stroke();
+      const e = Math.floor(p * (N - 1)); g.fillStyle = ACC; g.beginPath(); g.arc(X(e), Y(DATA.a[e]), 14, 0, M.TAU); g.fill();
+      M.text(g, 'ukážkové dáta', W - 200, 300, { font: `500 28px "${MONO}"`, color: G1, align: 'right', alpha: M.prog(t, .4, .3) });
+    }},
+
+    /* 2 · Stĺpcový graf – zoradí sa podľa výsledku */
+    { from: 2.5, to: 5.5, draw(g, t) {
+      M.text(g, 'Zhodnotenie 2021 → 2026', 200, 170, { font: `700 64px ${F}`, color: INK, align: 'left', spacing: -2, alpha: M.prog(t, 0, .3) });
+      const max = 310, order = DATA.bars.map((b, i) => i).sort((a, b) => DATA.bars[b][1] - DATA.bars[a][1]);
+      DATA.bars.forEach(([name, v], i) => {
+        const rank = order.indexOf(i), sortP = M.sp(t - 1.6, 'base');
+        const y = 300 + M.lerp(i, rank, sortP) * 140;
+        const s = M.sp(t - 0.2 - i * 0.12, 'heavy'), w = 1100 * (v / max) * s;
+        M.text(g, name, 200, y + 45, { font: `600 40px ${F}`, color: INK, align: 'left' });
+        g.fillStyle = name === 'Bitcoin' ? ACC : G2; M.rrect(g, 520, y, Math.max(1, w), 90, 12); g.fill();
+        M.text(g, '+' + fmt(Math.round(v * s)) + ' %', 540 + w, y + 47, { font: `600 38px "${MONO}"`, color: name === 'Bitcoin' ? ACC : G1, align: 'left', alpha: M.clamp(s * 2) });
+      });
+    }},
+
+    /* 3 · Donut – alokácia */
+    { from: 5.5, to: 8.5, draw(g, t) {
+      const cx = 700, cy = 560, R = 300, total = 100; let a0 = -Math.PI / 2;
+      const cols = [INK, ACC, G2, G3];
+      DATA.alloc.forEach(([name, v], i) => {
+        const s = M.sp(t - 0.2 - i * 0.18, 'base'), a1 = a0 + (v / total) * M.TAU * s;
+        if (s > 0.02) { g.strokeStyle = cols[i]; g.lineWidth = 120; g.beginPath(); g.arc(cx, cy, R, a0 + 0.012, Math.max(a0 + 0.013, a1 - 0.012)); g.stroke(); }
+        a0 += (v / total) * M.TAU;
+        // legenda
+        const ly = 330 + i * 120, l = M.sp(t - 0.3 - i * 0.18, 'snappy');
+        g.fillStyle = cols[i]; M.rrect(g, 1200, ly - 22, 44, 44, 10); g.fill();
+        M.text(g, name, 1270 + (1 - l) * 40, ly, { font: `600 44px ${F}`, color: INK, align: 'left', alpha: l });
+        M.text(g, v + ' %', 1720, ly, { font: `600 44px "${MONO}"`, color: G1, align: 'right', alpha: l });
+      });
+      const c = M.sp(t - 0.9, 'playful');
+      g.save(); g.translate(cx, cy); g.scale(c, c);
+      M.text(g, '4', 0, -20, { font: `800 150px ${F}`, color: INK }); M.text(g, 'triedy aktív', 0, 80, { font: `500 36px ${F}`, color: G1 }); g.restore();
+    }},
+
+    /* 4 · Porovnanie dvoch línií + scrubovací kurzor */
+    { from: 8.5, to: 11, draw(g, t) {
+      const x0 = 200, x1 = 1720, y0 = 900, y1 = 260, N = DATA.a.length;
+      const X = i => M.lerp(x0, x1, i / (N - 1)), Y = v => M.lerp(y0, y1, (v - 90) / 150);
+      M.text(g, 'Portfólio vs. sporiaci účet', x0, 170, { font: `700 64px ${F}`, color: INK, align: 'left', spacing: -2, alpha: M.prog(t, 0, .3) });
+      for (let k = 0; k < 4; k++) { g.fillStyle = G3; g.fillRect(x0, Y(100 + k * 40), x1 - x0, 2); }
+      const p = M.prog(t, 0.15, 1.1, M.ease.inOut), m = p * (N - 1);
+      const path = (arr) => { g.beginPath(); for (let i = 0; i <= m; i++) g.lineTo(X(i), Y(arr[i]));
+        const fi = Math.floor(m), fr = m - fi; if (fi < N - 1) g.lineTo(M.lerp(X(fi), X(fi + 1), fr), M.lerp(Y(arr[fi]), Y(arr[fi + 1]), fr)); };
+      // plocha pod portfóliom
+      path(DATA.a); g.lineTo(X(m), y0); g.lineTo(x0, y0); g.closePath(); g.fillStyle = M.alpha(ACC, .12); g.fill();
+      g.lineWidth = 8; g.lineJoin = 'round'; g.lineCap = 'round';
+      path(DATA.b); g.strokeStyle = G2; g.stroke();
+      path(DATA.a); g.strokeStyle = ACC; g.stroke();
+      // scrub
+      const sx = M.track(t, [[0, 0], [1.3, 12], [1.85, 20]], 'base');
+      const sp = M.prog(t, 1.2, 0.2);
+      if (sp > 0) { const i = Math.round(sx), px = X(sx);
+        const va = M.lerp(DATA.a[Math.floor(sx)], DATA.a[Math.min(N - 1, Math.floor(sx) + 1)], sx % 1);
+        g.globalAlpha = sp; g.fillStyle = INK; g.fillRect(px - 1.5, y1 - 20, 3, y0 - y1 + 20);
+        g.fillStyle = ACC; g.beginPath(); g.arc(px, Y(va), 16, 0, M.TAU); g.fill();
+        g.fillStyle = INK; M.rrect(g, px - 250, Y(va) - 130, 230, 90, 16); g.fill();
+        M.text(g, fmt(va * 100) + ' €', px - 135, Y(va) - 85, { font: `600 40px "${MONO}"`, color: '#fff' }); g.globalAlpha = 1; }
+      M.text(g, '● portfólio', x1, 940, { font: `600 32px ${F}`, color: ACC, align: 'right' });
+      M.text(g, '● sporiaci účet', x1 - 260, 940, { font: `600 32px ${F}`, color: G1, align: 'right' });
+    }},
+
+    /* 5 · Záver */
+    { from: 11, to: 12, draw(g, t) {
+      g.fillStyle = INK; g.fillRect(0, 0, W, H * M.sp(t, 'snappy'));
+      M.text(g, 'Tvoje dáta → video.', W / 2, H / 2, { font: `800 120px ${F}`, color: BG, spacing: -4, alpha: M.prog(t, 0.1, 0.2) });
+    }},
+  ],
+});
+</script>

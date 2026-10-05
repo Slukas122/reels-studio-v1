@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "source": "source.mp4",
+  "format": {"width": 1080, "height": 1920, "fps": 30},
+  "segments": [
+    {"id": "opening", "sourceStartMs": 0, "sourceEndMs": 5000, "outputStartMs": 0, "outputEndMs": 5000, "rate": 1, "focusX": 50, "focusY": 45, "scale": 1}
+  ],
+  "spokenDurationMs": 5000,
+  "totalDurationMs": 5000,
+  "hook": {"text": "Replace this with a truthful hook", "durationMs": 1400},
+  "cta": null,
+  "effects": [],
+  "broll": [],
+  "sfx": [],
+  "music": null,
+  "captions": {"enabled": true, "maxWordsPerPage": 4, "position": "lower", "highlightWords": [], "fontSize": 70, "speakerColors": {}},
+  "brand": {"fontFamily": "Inter, Arial, sans-serif", "textColor": "#FFFFFF", "accentColor": "#FFE600", "backgroundColor": "#0B0B0D", "captionBoxColor": "rgba(0,0,0,0.58)", "logo": null, "fontFile": null}
+}

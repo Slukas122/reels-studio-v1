@@ -1,0 +1,140 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<script src="motion.js"></script>
+<body><script>
+/* 06 · RUČNE KRESLENÉ / PAPIER  ·  9:16  ·  12 s  ·  90 BPM
+   Triky: papierová textúra (predkreslená raz, so seedom) · "boiling line" – čiary sa trasú 8× za sekundu (animácia "on twos")
+   · kreslenie ťahom (lineDash) · akvarelové škvrny (vrstvy + multiply) · rukopis Caveat odkrývaný zľava doprava */
+const W = 1080, H = 1920, DUR = 12;
+const PAPER = '#F2E8D5', INK = '#2A2826', BLUE = '#5A8BB5', TERRA = '#D0654A', OCHRE = '#E2B04A';
+const HAND = 'Caveat';
+const BOIL = 8; // koľkokrát za sekundu sa čiary "prekreslia"
+
+// ---------- nástroje ručného štýlu ----------
+let paperTex = null;
+function paper(g) {
+  if (!paperTex) { // textúra sa vytvorí raz, deterministicky
+    paperTex = document.createElement('canvas'); paperTex.width = W; paperTex.height = H;
+    const p = paperTex.getContext('2d'), r = M.rng(77);
+    p.fillStyle = PAPER; p.fillRect(0, 0, W, H);
+    for (let i = 0; i < 9000; i++) { p.fillStyle = r() > .5 ? 'rgba(120,90,50,.05)' : 'rgba(255,255,255,.08)'; p.fillRect(r() * W, r() * H, 1 + r() * 3, 1 + r() * 3); }
+    for (let i = 0; i < 400; i++) { p.strokeStyle = 'rgba(120,90,50,.06)'; p.lineWidth = 1; p.beginPath(); const x = r() * W, y = r() * H; p.moveTo(x, y); p.lineTo(x + (r() - .5) * 40, y + (r() - .5) * 40); p.stroke(); }
+    const v = p.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(90,60,20,.18)'); p.fillStyle = v; p.fillRect(0, 0, W, H);
+  }
+  g.drawImage(paperTex, 0, 0);
+}
+const boil = (T) => Math.floor(T * BOIL);
+// roztrasená čiara cez body, ťah sa kreslí podľa p (0..1)
+function sketch(g, pts, T, o = {}) {
+  if ((o.p ?? 1) <= 0.001) return;
+  const r = M.rng(boil(T) * 131 + (o.seed || 1)), j = o.jitter ?? 3;
+  const q = pts.map(([x, y]) => [x + (r() - .5) * j * 2, y + (r() - .5) * j * 2]);
+  g.save(); g.strokeStyle = o.color || INK; g.lineWidth = o.width || 6; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(...q[0]);
+  if (o.smooth) { for (let i = 1; i < q.length - 1; i++) g.quadraticCurveTo(q[i][0], q[i][1], (q[i][0] + q[i + 1][0]) / 2, (q[i][1] + q[i + 1][1]) / 2); }
+  else for (let i = 1; i < q.length - 1; i++) g.lineTo(...q[i]);
+  g.lineTo(...q[q.length - 1]);
+  let len = 0; for (let i = 1; i < q.length; i++) len += Math.hypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]);
+  const p = o.p ?? 1; g.setLineDash([len * p, len * 2]); g.stroke(); g.restore();
+  // druhý, jemnejší ťah vedľa prvého = ceruzkový "sketchy" dojem
+  if (o.double !== false && !o._second) sketch(g, pts, T, { ...o, _second: true, double: false, seed: (o.seed || 1) + 999, width: (o.width || 6) * 0.45, color: M.alpha(o.color && o.color.startsWith('#') ? o.color : INK, 0.45), jitter: (o.jitter ?? 3) * 1.8 });
+}
+const rectPts = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y + 2]];
+const circPts = (cx, cy, r, n = 24, over = 1.1) => Array.from({ length: Math.round(n * over) + 1 }, (_, i) => [cx + Math.cos(i / n * M.TAU - 1.6) * r, cy + Math.sin(i / n * M.TAU - 1.6) * r]);
+// akvarelová škvrna
+function wash(g, cx, cy, R, color, p, seed, T) {
+  if (p <= 0) return;
+  g.save(); g.globalCompositeOperation = 'multiply';
+  for (let layer = 0; layer < 5; layer++) {
+    const r = M.rng(seed * 17 + layer), pts = [];
+    for (let i = 0; i < 64; i++) { const a = i / 64 * M.TAU;
+      const rr = R * p * (0.85 + 0.18 * M.noise(i * 0.18 + layer * 2.3, seed) + 0.02 * Math.sin(boil(T) * 1.7 + i * 0.5)) * (1 - layer * 0.05);
+      pts.push([cx + Math.cos(a) * rr + (r() - .5) * 3, cy + Math.sin(a) * rr * 0.9 + (r() - .5) * 3]); }
+    g.beginPath(); g.moveTo((pts[0][0] + pts[63][0]) / 2, (pts[0][1] + pts[63][1]) / 2);
+    for (let i = 0; i < 64; i++) { const a = pts[i], b = pts[(i + 1) % 64]; g.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); }
+    g.closePath(); g.fillStyle = M.alpha(color, 0.16); g.fill();
+    g.strokeStyle = M.alpha(color, 0.18); g.lineWidth = 3; g.stroke(); // tmavší okraj ako pri akvareli
+  }
+  g.restore();
+}
+// rukopis odkrývaný zľava doprava (ako keby ho niekto písal)
+function write(g, str, x, y, size, p, o = {}) {
+  g.save(); g.font = `${o.weight || 700} ${size}px ${HAND}`;
+  const w = g.measureText(str).width, x0 = o.align === 'left' ? x : x - w / 2;
+  M.clipRect(g, x0 - 20, y - size, (w + 40) * p, size * 2);
+  const r = M.rng(boil(o.T || 0) * 7 + 3);
+  g.translate((r() - .5) * 2, (r() - .5) * 2);
+  g.fillStyle = o.color || INK; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(str, x0, y); g.restore();
+  return w;
+}
+
+M.film({
+  W, H, DUR, BG: PAPER, title: 'rucne-kreslene',
+  fonts: [`700 100px ${HAND}`, `400 100px ${HAND}`],
+  music: { bpm: 90, style: 'lofi', key: 'C' },
+  cues: [
+    { t: 0.2, type: 'pen' }, { t: 0.7, type: 'pen' }, { t: 1.3, type: 'pen' }, { t: 1.9, type: 'pen', gain: .7 },
+    { t: 3.0, type: 'paper' }, { t: 3.2, type: 'pen' }, { t: 3.9, type: 'pen' }, { t: 4.6, type: 'pen' }, { t: 5.1, type: 'pop', gain: .4 },
+    { t: 6.0, type: 'paper' }, { t: 6.2, type: 'pop', gain: .5 }, { t: 7.0, type: 'pop', gain: .5 }, { t: 7.8, type: 'pop', gain: .5 },
+    { t: 9.0, type: 'paper' }, { t: 9.3, type: 'pen' }, { t: 10.1, type: 'ding' },
+  ],
+  before(g, T) { paper(g); },
+  scenes: [
+    /* 1 · nadpis sa napíše + podčiarknutie */
+    { from: 0, to: 3, draw(g, t, T) {
+      wash(g, 560, 860, 330, BLUE, M.sp(t - 0.05, 'soft'), 3, T);
+      write(g, 'Ako Claude', W / 2, 760, 150, M.prog(t, 0.15, 0.6), { T });
+      write(g, 'kreslí video?', W / 2, 930, 150, M.prog(t, 0.7, 0.7), { T, color: TERRA });
+      sketch(g, [[260, 1040], [430, 1030], [600, 1045], [820, 1025]], T, { smooth: true, p: M.prog(t, 1.5, 0.4), width: 9, color: INK, seed: 2 });
+      sketch(g, [[300, 1070], [520, 1062], [760, 1068]], T, { smooth: true, p: M.prog(t, 1.75, 0.35), width: 6, color: INK, seed: 4 });
+      write(g, '(bez jediného pixelu z kamery)', W / 2, 1200, 64, M.prog(t, 2.1, 0.6), { T, weight: 400 });
+    }},
+
+    /* 2 · laptop → šípka → filmový pás */
+    { from: 3, to: 6, draw(g, t, T) {
+      const lp = M.prog(t, 0.1, 0.6);
+      sketch(g, rectPts(200, 520, 680, 420), T, { p: lp, width: 7, seed: 11 });
+      sketch(g, [[120, 960], [960, 960], [900, 1010], [180, 1010], [120, 960]], T, { p: M.prog(t, 0.5, 0.4), width: 7, seed: 12 });
+      for (let i = 0; i < 6; i++) { const y = 590 + i * 55, w = [300, 420, 220, 380, 260, 330][i];
+        sketch(g, [[250 + (i % 3) * 30, y], [250 + (i % 3) * 30 + w, y]], T, { p: M.prog(t, 0.7 + i * 0.1, 0.25), width: 8, color: i === 2 ? TERRA : BLUE, seed: 20 + i }); }
+      write(g, 'seek(t)', 690, 890, 60, M.prog(t, 1.2, 0.3), { T, color: TERRA });
+      sketch(g, [[560, 1080], [520, 1200], [560, 1320], [640, 1380]], T, { smooth: true, p: M.prog(t, 1.5, 0.4), width: 7, seed: 31 });
+      sketch(g, [[600, 1350], [645, 1382], [598, 1405]], T, { p: M.prog(t, 1.85, 0.15), width: 7, seed: 32 });
+      // filmový pás
+      const fp = M.prog(t, 1.9, 0.6);
+      sketch(g, rectPts(220, 1440, 640, 220), T, { p: fp, width: 7, seed: 40 });
+      for (let i = 0; i < 4; i++) { wash(g, 305 + i * 157, 1550, 60, [OCHRE, TERRA, BLUE, OCHRE][i], M.sp(t - 2.2 - i * 0.1, 'playful'), 50 + i, T);
+        sketch(g, rectPts(250 + i * 157, 1480, 110, 140), T, { p: M.prog(t, 2.1 + i * 0.08, 0.2), width: 5, seed: 41 + i }); }
+      write(g, '900 obrázkov → 1 video', W / 2, 1760, 68, M.prog(t, 2.3, 0.5), { T });
+    }},
+
+    /* 3 · tri kroky v akvarelových bublinách */
+    { from: 6, to: 9, draw(g, t, T) {
+      write(g, 'Celý trik:', W / 2, 360, 120, M.prog(t, 0, 0.4), { T });
+      const steps = [['1', 'Claude napíše kód', BLUE], ['2', 'prehliadač ho vyrenderuje', OCHRE], ['3', 'Claude si video pozrie', TERRA]];
+      steps.forEach(([n, txt, col], i) => { const y = 700 + i * 380, at = 0.2 + i * 0.8;
+        wash(g, 230, y, 130, col, M.sp(t - at, 'playful'), 60 + i, T);
+        sketch(g, circPts(230, y, 110), T, { p: M.prog(t, at, 0.35), width: 6, seed: 70 + i });
+        write(g, n, 230, y + 5, 150, M.prog(t, at + 0.15, 0.2), { T });
+        write(g, txt, 385, y, 64, M.prog(t, at + 0.25, 0.5), { T, align: 'left' });
+        if (i < 2) sketch(g, [[230, y + 140], [220, y + 190], [235, y + 240]], T, { p: M.prog(t, at + 0.6, 0.2), width: 5, seed: 80 + i });
+      });
+      // krok 3 dostane "fajku"
+      sketch(g, [[890, 1400], [925, 1440], [1000, 1340]], T, { p: M.prog(t, 2.3, 0.25), width: 10, color: TERRA, seed: 90 });
+    }},
+
+    /* 4 · záver */
+    { from: 9, to: 12, draw(g, t, T) {
+      wash(g, W / 2, 900, 420, TERRA, M.sp(t, 'soft'), 101, T);
+      wash(g, W / 2 + 120, 1000, 260, OCHRE, M.sp(t - 0.3, 'soft'), 102, T);
+      write(g, 'Všetko je', W / 2, 820, 170, M.prog(t, 0.3, 0.5), { T });
+      write(g, 'len kód.', W / 2, 1000, 200, M.prog(t, 0.8, 0.5), { T });
+      // doodle hviezdičky
+      [[200, 520, 0], [880, 580, 1], [860, 1240, 2]].forEach(([x, y, k]) => { const p = M.prog(t, 1.2 + k * 0.15, 0.3), s = 40;
+        sketch(g, [[x - s, y], [x + s, y]], T, { p, width: 6, seed: 110 + k }); sketch(g, [[x, y - s], [x, y + s]], T, { p, width: 6, seed: 120 + k });
+        sketch(g, [[x - s * .6, y - s * .6], [x + s * .6, y + s * .6]], T, { p, width: 5, seed: 130 + k }); });
+      write(g, 'example.com', W / 2, 1480, 80, M.prog(t, 1.6, 0.5), { T, weight: 400 });
+    }},
+  ],
+});
+</script>
