@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reels Studio"
+  short_description: "Hotová Reels ze záběrů a motion grafiky"
+  default_prompt: "Použij $reels-studio a vytvoř hotové Reel z mých podkladů."
